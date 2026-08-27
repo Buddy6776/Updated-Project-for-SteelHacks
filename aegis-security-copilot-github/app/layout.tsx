@@ -1,0 +1,20 @@
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
+import './dashboard.css';
+import './edr.css';
+import './email-security.css';
+import './auth.css';
+import './workspace-tools.css';
+import './tool-catalog.css';
+import './coverage.css';
+import './command-suggestions.css';
+import './accessibility.css';
+import './content-pages.css';
+import './analytics.css';
+import './auth-extras.css';
+import './tool-links.css';
+const sans=Geist({variable:'--font-geist-sans',subsets:['latin']});
+const mono=Geist_Mono({variable:'--font-geist-mono',subsets:['latin']});
+export const metadata:Metadata={metadataBase:new URL('https://aegis-security-copilot.charliepbrill.chatgpt.site'),title:'Aegis — Check and Monitor Your Business Website',description:'Enter your business website for a clear security review, then verify ownership to unlock continuous monitoring and alerts.',openGraph:{title:'Is your business website safe right now?',description:'Check your public security signals with Aegis, then verify and monitor your site.',images:['/og.png']},twitter:{card:'summary_large_image',title:'Is your business website safe right now?',description:'Check your public security signals with Aegis, then verify and monitor your site.',images:['/og.png']}};
+export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body className={`${sans.variable} ${mono.variable}`}>{children}</body></html>}

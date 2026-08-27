@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPOSE_FILE="$PROJECT_DIR/docker-compose.pi.yml"
+IMAGE_NAME="aegis-security-copilot:pi"
+DATA_VOLUME="aegis-pi-data"
+
+compose() {
+  docker compose -f "$COMPOSE_FILE" "$@"
+}
+
+require_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Docker is required. Install Docker Engine and the Docker Compose plugin first."
+    exit 1
+  fi
+  docker compose version >/dev/null
+}
+
+show_address() {
+  local lan_ip
+  lan_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  echo "Aegis is starting."
+  echo "This Raspberry Pi: http://localhost:${AEGIS_HTTP_PORT:-3000}"
+  if [[ -n "$lan_ip" ]]; then
+    echo "Other devices on your network: http://${lan_ip}:${AEGIS_HTTP_PORT:-3000}"
+  fi
+  echo "Use './scripts/aegis-pi status' to check readiness."
+}
+
+backup_data() {
+  local backup_dir archive was_running
+  backup_dir="$PROJECT_DIR/backups"
+  archive="aegis-pi-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+  mkdir -p "$backup_dir"
+  was_running="$(compose ps --status running --quiet web || true)"
+  if [[ -n "$was_running" ]]; then compose stop web >/dev/null; fi
+  restore_web() {
+    if [[ -n "$was_running" ]]; then compose start web >/dev/null; fi
+  }
+  trap restore_web EXIT
+  docker run --rm --entrypoint tar \
+    -v "$DATA_VOLUME:/data:ro" \
+    -v "$backup_dir:/backup" \
+    "$IMAGE_NAME" -czf "/backup/$archive" -C /data .
+  trap - EXIT
+  restore_web
+  echo "Backup created: $backup_dir/$archive"
+}
+
+usage() {
+  cat <<'EOF'
+Usage: ./scripts/aegis-pi <command>
+
+  start        Build and start the Aegis website on this Pi
+  public       Start Aegis with the optional Caddy HTTPS proxy
+  tools        Start the isolated scanner API in safe mock mode
+  status       Show service and health status
+  logs         Follow website logs
+  backup       Create a timestamped on-device database backup
+  restart      Restart the website service
+  stop         Stop the Pi services without deleting their data
+  update       Rebuild the image and restart using the current source
+EOF
+}
+
+require_docker
+cd "$PROJECT_DIR"
+
+case "${1:-}" in
+  start)
+    compose up -d --build web
+    show_address
+    ;;
+  public)
+    compose --profile public up -d --build web caddy
+    echo "Aegis HTTPS proxy is starting for ${AEGIS_DOMAIN:-the domain in your .env file}."
+    ;;
+  tools)
+    compose --profile tools up -d --build scanner
+    echo "The isolated scanner API is running on 127.0.0.1:8080 in safe mock mode unless explicitly configured otherwise."
+    ;;
+  status)
+    compose ps
+    ;;
+  logs)
+    compose logs --follow --tail=150 web
+    ;;
+  backup)
+    backup_data
+    ;;
+  restart)
+    compose restart web
+    ;;
+  stop)
+    compose --profile public --profile tools down
+    echo "Aegis stopped. The database volume was preserved."
+    ;;
+  update)
+    compose up -d --build web
+    show_address
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

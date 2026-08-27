@@ -1,0 +1,78 @@
+name: aegis-pi
+
+services:
+  web:
+    image: aegis-security-copilot:pi
+    build:
+      context: .
+      dockerfile: Dockerfile.pi
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${AEGIS_HTTP_PORT:-3000}:3000"
+    volumes:
+      - aegis_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m,uid=1000,gid=1000
+      - /home/node/.config:rw,noexec,nosuid,size=8m,uid=1000,gid=1000
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - frontend
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    profiles: ["public"]
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      AEGIS_DOMAIN: "${AEGIS_DOMAIN:-localhost}"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/raspberry-pi/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - frontend
+
+  scanner:
+    profiles: ["tools"]
+    build: ./scanner-service
+    restart: unless-stopped
+    environment:
+      AEGIS_LIVE_SCANS: "${AEGIS_LIVE_SCANS:-0}"
+      AEGIS_ALLOWED_TARGETS: "${AEGIS_ALLOWED_TARGETS:-staging.example.com}"
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - scanner_only
+
+networks:
+  frontend:
+  scanner_only:
+    internal: true
+
+volumes:
+  aegis_data:
+    name: aegis-pi-data
+  caddy_data:
+    name: aegis-pi-caddy-data
+  caddy_config:
+    name: aegis-pi-caddy-config

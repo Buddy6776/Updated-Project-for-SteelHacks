@@ -1,0 +1,2 @@
+import { cleanHostname,runPublicCheck } from '../../security/public-check';
+export async function POST(request:Request){const body=await request.json() as {url?:string};const hostname=cleanHostname(body.url??'');if(!hostname)return Response.json({error:'Enter a valid public business website.'},{status:400});try{return Response.json(await runPublicCheck(hostname))}catch{return Response.json({error:'A secure connection to that website could not be completed.'},{status:422})}}

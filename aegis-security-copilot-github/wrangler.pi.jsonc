@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "aegis-security-copilot-pi",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "rules": [
+    {
+      "type": "ESModule",
+      "globs": ["**/*.js", "**/*.mjs"]
+    }
+  ],
+  "assets": {
+    "directory": "dist/client"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aegis-pi",
+      "database_id": "00000000-0000-4000-8000-000000000000",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "dev": {
+    "ip": "0.0.0.0",
+    "port": 3000,
+    "local_protocol": "http"
+  },
+  "observability": {
+    "enabled": false
+  }
+}

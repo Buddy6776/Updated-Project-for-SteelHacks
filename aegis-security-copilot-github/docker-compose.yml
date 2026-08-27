@@ -1,0 +1,15 @@
+services:
+  scanner:
+    build: ./scanner-service
+    environment:
+      AEGIS_LIVE_SCANS: "0"
+      AEGIS_ALLOWED_TARGETS: "staging.example.com,api.staging.example.com"
+    ports:
+      - "8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
